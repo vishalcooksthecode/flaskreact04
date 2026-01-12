@@ -4,26 +4,18 @@ import './App.css';
 const API_BASE = 'http://localhost:5000';
 
 function App() {
-  const [user, setUser] = useState(null);
-  const [token, setToken] = useState(localStorage.getItem('token'));
   const [tasks, setTasks] = useState([]);
   const [newTask, setNewTask] = useState({ title: '', description: '' });
   const [editingTask, setEditingTask] = useState(null);
   const [expandedTask, setExpandedTask] = useState(null);
 
   useEffect(() => {
-    if (token) {
-      setUser({ username: localStorage.getItem('username') });
-      fetchTasks();
-    }
-  }, [token]);
+    fetchTasks();
+  }, []);
 
   const fetchTasks = async () => {
-    if (!token) return;
     try {
-      const response = await fetch(`${API_BASE}/tasks`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const response = await fetch(`${API_BASE}/tasks`);
       if (response.ok) {
         const data = await response.json();
         setTasks(data);
@@ -40,10 +32,7 @@ function App() {
     try {
       const response = await fetch(`${API_BASE}/tasks`, {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newTask)
       });
       
@@ -60,10 +49,7 @@ function App() {
     try {
       const response = await fetch(`${API_BASE}/tasks/${taskId}`, {
         method: 'PUT',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updates)
       });
       
@@ -81,8 +67,7 @@ function App() {
 
     try {
       const response = await fetch(`${API_BASE}/tasks/${taskId}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
+        method: 'DELETE'
       });
       
       if (response.ok) {
@@ -97,26 +82,10 @@ function App() {
     updateTask(task.id, { ...task, completed: !task.completed });
   };
 
-  const logout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('username');
-    setToken(null);
-    setUser(null);
-    setTasks([]);
-  };
-
-  if (!user) {
-    return <AuthForm setToken={setToken} setUser={setUser} />;
-  }
-
   return (
     <div className="App">
       <header className="App-header">
         <h1>Task Manager</h1>
-        <div className="user-info">
-          <span>Welcome, {user.username}!</span>
-          <button onClick={logout} className="logout-btn">Logout</button>
-        </div>
       </header>
 
       <main className="container">
@@ -224,7 +193,6 @@ function Comments({ taskId }) {
   const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState('');
   const [editingComment, setEditingComment] = useState(null);
-  const token = localStorage.getItem('token');
 
   useEffect(() => {
     fetchComments();
@@ -232,9 +200,7 @@ function Comments({ taskId }) {
 
   const fetchComments = async () => {
     try {
-      const response = await fetch(`${API_BASE}/comments?task_id=${taskId}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const response = await fetch(`${API_BASE}/comments?task_id=${taskId}`);
       const data = await response.json();
       setComments(data);
     } catch (error) {
@@ -249,10 +215,7 @@ function Comments({ taskId }) {
     try {
       const response = await fetch(`${API_BASE}/comments`, {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ task_id: taskId, content: newComment })
       });
       
@@ -269,10 +232,7 @@ function Comments({ taskId }) {
     try {
       const response = await fetch(`${API_BASE}/comments/${commentId}`, {
         method: 'PUT',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ content })
       });
       
@@ -290,8 +250,7 @@ function Comments({ taskId }) {
 
     try {
       const response = await fetch(`${API_BASE}/comments/${commentId}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
+        method: 'DELETE'
       });
       
       if (response.ok) {
@@ -370,74 +329,5 @@ function EditCommentForm({ comment, onSave, onCancel }) {
   );
 }
 
-function AuthForm({ setToken, setUser }) {
-  const [isLogin, setIsLogin] = useState(true);
-  const [formData, setFormData] = useState({ username: '', password: '' });
-  const [error, setError] = useState('');
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError('');
-    
-    const endpoint = isLogin ? '/login' : '/register';
-    
-    try {
-      const response = await fetch(`${API_BASE}${endpoint}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
-      });
-      
-      const data = await response.json();
-      
-      if (response.ok) {
-        localStorage.setItem('token', data.access_token);
-        localStorage.setItem('username', data.username);
-        setToken(data.access_token);
-        setUser({ username: data.username });
-      } else {
-        setError(data.error);
-      }
-    } catch (error) {
-      setError('Network error');
-    }
-  };
-
-  return (
-    <div className="auth-container">
-      <div className="auth-form">
-        <h2>{isLogin ? 'Login' : 'Register'}</h2>
-        {error && <div className="error">{error}</div>}
-        <form onSubmit={handleSubmit}>
-          <input
-            type="text"
-            placeholder="Username"
-            value={formData.username}
-            onChange={(e) => setFormData({...formData, username: e.target.value})}
-            required
-          />
-          <input
-            type="password"
-            placeholder="Password"
-            value={formData.password}
-            onChange={(e) => setFormData({...formData, password: e.target.value})}
-            required
-          />
-          <button type="submit">{isLogin ? 'Login' : 'Register'}</button>
-        </form>
-        <p>
-          {isLogin ? "Don't have an account? " : "Already have an account? "}
-          <button 
-            type="button" 
-            className="link-btn"
-            onClick={() => setIsLogin(!isLogin)}
-          >
-            {isLogin ? 'Register' : 'Login'}
-          </button>
-        </p>
-      </div>
-    </div>
-  );
-}
 
 export default App;
